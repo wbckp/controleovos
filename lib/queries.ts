@@ -38,6 +38,7 @@ export const getSales = async (): Promise<Sale[]> => {
         quantity: s.quantity,
         value: s.value,
         date: s.date,
+        paymentDate: s.payment_date,
         status: s.status as PaymentStatus,
         description: s.description || ''
     }));
@@ -131,10 +132,13 @@ export const deleteSale = async (id: string): Promise<void> => {
     if (error) throw error;
 };
 
-export const updateSaleStatus = async (id: string, status: PaymentStatus): Promise<void> => {
+export const updateSaleStatus = async (id: string, status: PaymentStatus, paymentDate?: string): Promise<void> => {
     const { error } = await supabase
         .from('sales')
-        .update({ status })
+        .update({
+            status,
+            payment_date: paymentDate
+        })
         .eq('id', id);
 
     if (error) throw error;

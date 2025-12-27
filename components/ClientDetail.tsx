@@ -14,13 +14,52 @@ interface ClientDetailProps {
   customer: Customer;
   sales: Sale[];
   onBack: () => void;
-  onPaymentRegistered: (saleId: string) => void;
+  onPaymentRegistered: (saleId: string, paymentDate: string) => void;
   onEditCustomer: (customer: Customer) => void;
   onDeleteCustomer: (id: string) => void;
   onEditSale: (sale: Sale) => void;
   onDeleteSale: (id: string) => void;
   onNewSale: (customerId: string) => void;
 }
+
+const PaymentDateDialog: React.FC<{
+  isOpen: boolean;
+  onConfirm: (date: string) => void;
+  onCancel: () => void;
+}> = ({ isOpen, onConfirm, onCancel }) => {
+  const [date, setDate] = React.useState(new Date().toISOString().split('T')[0]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={onCancel} />
+      <Card className="relative w-full max-w-sm border-none shadow-2xl animate-in zoom-in-95 bg-card overflow-hidden">
+        <div className="h-1.5 w-full bg-primary" />
+        <CardContent className="p-6 space-y-6">
+          <div className="space-y-2">
+            <h3 className="text-xl font-black tracking-tight">Data do Pagamento</h3>
+            <p className="text-sm text-muted-foreground">Informe quando o cliente realizou o pagamento desta dívida.</p>
+          </div>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-12 rounded-xl border-2 border-primary/20 focus:border-primary transition-all font-bold"
+          />
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" className="flex-1 h-12 rounded-2xl font-bold" onClick={onCancel}>
+              Cancelar
+            </Button>
+            <Button className="flex-1 h-12 rounded-2xl font-black uppercase tracking-widest text-xs" onClick={() => onConfirm(date)}>
+              Confirmar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 const ClientDetail: React.FC<ClientDetailProps> = ({
   customer,
@@ -35,6 +74,10 @@ const ClientDetail: React.FC<ClientDetailProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [historyFilter, setHistoryFilter] = React.useState<'all' | 'paid' | 'pending'>('all');
+  const [paymentDialog, setPaymentDialog] = React.useState<{ isOpen: boolean, saleId: string | null }>({
+    isOpen: false,
+    saleId: null
+  });
 
   const filteredSales = useMemo(() => {
     return sales.filter(s => {
@@ -263,7 +306,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({
                           </div>
                         </div>
                         <Badge
-                          onClick={() => sale.status === PaymentStatus.PENDING && onPaymentRegistered(sale.id)}
+                          onClick={() => sale.status === PaymentStatus.PENDING && setPaymentDialog({ isOpen: true, saleId: sale.id })}
                           className={`text-[9px] font-black uppercase px-2 py-0 border-none rounded-md transition-colors ${sale.status === PaymentStatus.PENDING
                             ? 'bg-destructive/20 text-destructive hover:bg-destructive/30 cursor-pointer'
                             : 'bg-primary/20 text-primary hover:bg-primary/30'
@@ -284,6 +327,16 @@ const ClientDetail: React.FC<ClientDetailProps> = ({
             )}
           </div>
         </div>
+        <PaymentDateDialog
+          isOpen={paymentDialog.isOpen}
+          onCancel={() => setPaymentDialog({ isOpen: false, saleId: null })}
+          onConfirm={(date) => {
+            if (paymentDialog.saleId) {
+              onPaymentRegistered(paymentDialog.saleId, date);
+            }
+            setPaymentDialog({ isOpen: false, saleId: null });
+          }}
+        />
       </main>
     </div>
   );

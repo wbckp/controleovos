@@ -22,27 +22,14 @@ interface NewSaleFormProps {
 const NewSaleForm: React.FC<NewSaleFormProps> = ({ customers, onSave, onCancel, onAddNewCustomer, onNavigateToNewCustomer, initialData, initialCustomerId }) => {
   const [customerId, setCustomerId] = useState(initialData?.customerId || initialCustomerId || '');
   const [quantity, setQuantity] = useState(initialData?.quantity.toString() || '');
-  const [value, setValue] = useState(initialData?.value ? initialData.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '');
+  const [value, setValue] = useState(initialData?.value.toString() || '');
   const [status, setStatus] = useState<PaymentStatus>(initialData?.status || PaymentStatus.PAID);
   const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
 
-  const formatCurrency = (val: string) => {
-    const numbers = val.replace(/\D/g, '');
-    const amount = Number(numbers) / 100;
-    return amount.toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    });
-  };
 
-  const parseCurrency = (formattedValue: string) => {
-    const numbers = formattedValue.replace(/\D/g, '');
-    return Number(numbers) / 100;
-  };
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value;
-    setValue(formatCurrency(rawValue));
+    setValue(e.target.value);
   };
 
   const handleSave = () => {
@@ -55,7 +42,7 @@ const NewSaleForm: React.FC<NewSaleFormProps> = ({ customers, onSave, onCancel, 
       customerId,
       customerName: client?.name || 'Cliente Desconhecido',
       quantity: Number(quantity),
-      value: parseCurrency(value),
+      value: Number(value),
       date,
       status,
       description: `${quantity} Dúzias - Ovos`
@@ -126,7 +113,7 @@ const NewSaleForm: React.FC<NewSaleFormProps> = ({ customers, onSave, onCancel, 
         {/* Details Section */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-3">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Qtd. Dúzias</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Qtd. Ovos</Label>
             <div className="relative group">
               <Package className="absolute left-4 top-4 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input
@@ -144,9 +131,10 @@ const NewSaleForm: React.FC<NewSaleFormProps> = ({ customers, onSave, onCancel, 
             <div className="relative group">
               <DollarSign className="absolute left-4 top-4 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input
-                type="text"
-                className="h-14 pl-10 rounded-2xl border bg-card shadow-sm text-lg font-black"
-                placeholder="R$ 0,00"
+                type="number"
+                step="0.01"
+                className="h-14 pl-12 rounded-2xl border bg-card shadow-sm text-lg font-black"
+                placeholder="0,00"
                 value={value}
                 onChange={handleValueChange}
               />

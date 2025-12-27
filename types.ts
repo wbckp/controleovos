@@ -11,6 +11,7 @@ export interface Sale {
   quantity: number; // in dozens
   value: number;
   date: string;
+  paymentDate?: string;
   status: PaymentStatus;
   description: string;
 }

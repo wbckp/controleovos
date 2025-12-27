@@ -300,10 +300,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePaymentRegistered = async (saleId: string) => {
+  const handlePaymentRegistered = async (saleId: string, paymentDate: string) => {
     try {
-      await updateSaleStatus(saleId, PaymentStatus.PAID);
-      setSales(prev => prev.map(s => s.id === saleId ? { ...s, status: PaymentStatus.PAID } : s));
+      await updateSaleStatus(saleId, PaymentStatus.PAID, paymentDate);
+      setSales(prev => prev.map(s => s.id === saleId ? { ...s, status: PaymentStatus.PAID, paymentDate } : s));
     } catch (error) {
       console.error('Error updating payment:', error);
       alert('Erro ao registrar pagamento.');
