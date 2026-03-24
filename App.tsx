@@ -144,13 +144,24 @@ const App: React.FC = () => {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Lógica para iOS (que não dispara beforeinstallprompt)
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    // Lógica para iOS e fallback mobile (que não dispara beforeinstallprompt imediatamente ou nunca)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
     
-    if (isIos && !isStandalone && !sessionStorage.getItem('pwa_prompt_shown')) {
-      setShowInstallModal(true);
-      sessionStorage.setItem('pwa_prompt_shown', 'true');
+    if (isMobile && !isStandalone && !sessionStorage.getItem('pwa_prompt_shown')) {
+      const timer = setTimeout(() => {
+        setIsOnline(checkOnline()); // Re-check connection
+        setShowInstallModal(true);
+        sessionStorage.setItem('pwa_prompt_shown', 'true');
+      }, 5000); // Wait 5 seconds to give browser time to fire event
+      
+      return () => {
+        clearTimeout(timer);
+        subscription.unsubscribe();
+        window.removeEventListener('online', handleOnlineStatus);
+        window.removeEventListener('offline', handleOnlineStatus);
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      };
     }
 
     // Initial check for offline data

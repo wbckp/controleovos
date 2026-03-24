@@ -8,11 +8,12 @@ interface InstallModalProps {
 
 const InstallModal: React.FC<InstallModalProps> = ({ deferredPrompt, onClose }) => {
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
-    // Check for iOS
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    setIsIOS(isIos);
+    const ua = navigator.userAgent;
+    setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream);
+    setIsAndroid(/Android/i.test(ua));
   }, []);
 
   const handleInstallClick = async () => {
@@ -37,12 +38,10 @@ const InstallModal: React.FC<InstallModalProps> = ({ deferredPrompt, onClose }) 
         <div className="p-6 text-center">
           <h3 className="text-xl font-bold mb-2">Instalar App</h3>
           <p className="text-sm text-muted-foreground mb-8">
-            {isIOS 
-              ? 'Adicione à tela de início para usar o OvoControl como um aplicativo nativo e ter acesso offline.'
-              : 'Deseja instalar o OvoControl no seu celular para acesso rápido e modo offline?'}
+            Adicione o <b>OvoControl</b> à sua tela de início para acesso rápido e modo offline.
           </p>
 
-          {isIOS ? (
+          {isIOS && (
             <div className="space-y-4 mb-6 text-left bg-muted/50 p-4 rounded-2xl">
               <div className="flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold">1</div>
@@ -50,10 +49,23 @@ const InstallModal: React.FC<InstallModalProps> = ({ deferredPrompt, onClose }) 
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold">2</div>
-                <p className="text-xs">Role para baixo e selecione <b>"Adicionar à Tela de Início"</b> <PlusSquare className="w-4 h-4 inline mb-1" /></p>
+                <p className="text-xs">Selecione <b>"Adicionar à Tela de Início"</b> <PlusSquare className="w-4 h-4 inline mb-1" /></p>
               </div>
             </div>
-          ) : null}
+          )}
+
+          {isAndroid && !deferredPrompt && (
+            <div className="space-y-4 mb-6 text-left bg-muted/50 p-4 rounded-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold">1</div>
+                <p className="text-xs">Toque nos <b>três pontos</b> (menu) no canto superior direito</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold">2</div>
+                <p className="text-xs">Selecione <b>"Instalar aplicativo"</b> ou "Adicionar à tela inicial"</p>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             {!isIOS && deferredPrompt && (
