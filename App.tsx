@@ -67,13 +67,33 @@ const App: React.FC = () => {
   const [showInstallModal, setShowInstallModal] = useState(false);
 
   const fetchData = async () => {
+    if (!checkOnline()) {
+      console.log('Skipping fetch: offline.');
+      setLoading(false);
+      return;
+    }
+
     try {
+      console.log('Fetching data from Supabase...');
       setLoading(true);
-      const [customersData, salesData, settingsData] = await Promise.all([
+
+      // Timeout de 10 segundos para a busca
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout ao buscar dados')), 10000)
+      );
+
+      const fetchPromise = Promise.all([
         getCustomers(),
         getSales(),
         getAppSettings()
       ]);
+
+      const [customersData, salesData, settingsData] = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]) as [Customer[], Sale[], AppSettings | null];
+
+      console.log(`Fetched ${customersData.length} customers and ${salesData.length} sales.`);
       setCustomers(customersData);
       setSales(salesData);
       if (settingsData) {
@@ -81,6 +101,8 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Se der erro de conexão, pelo menos libera a tela
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -102,6 +124,9 @@ const App: React.FC = () => {
       } else {
         setLoading(false);
       }
+    }).catch(err => {
+      console.error('Session recovery failed:', err);
+      setLoading(false);
     });
 
     const {
@@ -113,9 +138,15 @@ const App: React.FC = () => {
         fetchData();
       } else if (event === 'SIGNED_OUT') {
         setScreen(AppScreen.LOGIN);
+        setCustomers([]);
+        setSales([]);
       }
     });
 
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
     const handleOnlineStatus = () => {
       const online = checkOnline();
       setIsOnline(online);
@@ -124,45 +155,14 @@ const App: React.FC = () => {
         if (queue.length > 0) {
           setOfflineQueue(queue);
           setShowSyncModal(true);
+        } else if (session) {
+          fetchData(); // Atualiza os dados se voltou a internet e estamos logados
         }
       }
     };
 
     window.addEventListener('online', handleOnlineStatus);
     window.addEventListener('offline', handleOnlineStatus);
-
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      
-      // Mostrar o modal se ainda não foi mostrado nesta sessão
-      if (!sessionStorage.getItem('pwa_prompt_shown')) {
-        setShowInstallModal(true);
-        sessionStorage.setItem('pwa_prompt_shown', 'true');
-      }
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Lógica para iOS e fallback mobile (que não dispara beforeinstallprompt imediatamente ou nunca)
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-    
-    if (isMobile && !isStandalone && !sessionStorage.getItem('pwa_prompt_shown')) {
-      const timer = setTimeout(() => {
-        setIsOnline(checkOnline()); // Re-check connection
-        setShowInstallModal(true);
-        sessionStorage.setItem('pwa_prompt_shown', 'true');
-      }, 5000); // Wait 5 seconds to give browser time to fire event
-      
-      return () => {
-        clearTimeout(timer);
-        subscription.unsubscribe();
-        window.removeEventListener('online', handleOnlineStatus);
-        window.removeEventListener('offline', handleOnlineStatus);
-        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      };
-    }
 
     // Initial check for offline data
     const initialQueue = getOfflineQueue();
@@ -172,10 +172,40 @@ const App: React.FC = () => {
     }
 
     return () => {
-      subscription.unsubscribe();
       window.removeEventListener('online', handleOnlineStatus);
       window.removeEventListener('offline', handleOnlineStatus);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      
+      if (!sessionStorage.getItem('pwa_prompt_shown')) {
+        setShowInstallModal(true);
+        sessionStorage.setItem('pwa_prompt_shown', 'true');
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Lógica para iOS e fallback mobile
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    
+    let timer: any;
+    if (isMobile && !isStandalone && !sessionStorage.getItem('pwa_prompt_shown')) {
+       timer = setTimeout(() => {
+        setIsOnline(checkOnline());
+        setShowInstallModal(true);
+        sessionStorage.setItem('pwa_prompt_shown', 'true');
+      }, 5000);
+    }
+
+    return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      if (timer) clearTimeout(timer);
     };
   }, []);
 
