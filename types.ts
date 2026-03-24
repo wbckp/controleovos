@@ -57,3 +57,23 @@ export interface ActivityLog {
   action: string;
   description: string;
 }
+
+export type OfflineAction = 'CREATE_SALE' | 'CREATE_CUSTOMER' | 'UPDATE_SALE' | 'UPDATE_CUSTOMER' | 'UPDATE_SALE_STATUS' | 'DELETE_SALE' | 'DELETE_CUSTOMER';
+
+export interface OfflinePayload {
+  sale?: any;
+  customer?: any;
+  saleId?: string;
+  customerId?: string;
+  status?: PaymentStatus;
+  paymentDate?: string;
+  id?: string;
+}
+
+export interface OfflineQueueItem {
+  id: string;
+  action: OfflineAction;
+  payload: OfflinePayload;
+  timestamp: number;
+  description: string;
+}

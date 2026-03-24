@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Customer, Sale, PaymentStatus, ActivityLog } from '../types';
+import { addToOfflineQueue, isOnline } from './offlineStorage';
 
 export const getCustomers = async (): Promise<Customer[]> => {
     const { data, error } = await supabase
@@ -45,6 +46,13 @@ export const getSales = async (): Promise<Sale[]> => {
 };
 
 export const createCustomer = async (customer: Omit<Customer, 'id'>): Promise<Customer> => {
+    if (!isOnline()) {
+        const tempId = `temp_${Math.random().toString(36).substr(2, 9)}`;
+        const newCustomer = { ...customer, id: tempId } as Customer;
+        addToOfflineQueue('CREATE_CUSTOMER', { customer: newCustomer }, `Cadastrar cliente: ${newCustomer.name}`);
+        return newCustomer;
+    }
+
     const { data, error } = await supabase
         .from('customers')
         .insert([{
@@ -71,6 +79,11 @@ export const createCustomer = async (customer: Omit<Customer, 'id'>): Promise<Cu
 };
 
 export const createSale = async (sale: Omit<Sale, 'id' | 'customerName'>): Promise<void> => {
+    if (!isOnline()) {
+        addToOfflineQueue('CREATE_SALE', { sale }, `Registrar venda de R$ ${sale.value.toFixed(2)}`);
+        return;
+    }
+
     const { error } = await supabase
         .from('sales')
         .insert([{
@@ -87,6 +100,11 @@ export const createSale = async (sale: Omit<Sale, 'id' | 'customerName'>): Promi
 };
 
 export const updateCustomer = async (id: string, customer: Partial<Customer>): Promise<void> => {
+    if (!isOnline()) {
+        addToOfflineQueue('UPDATE_CUSTOMER', { customer, id }, `Atualizar cliente: ${customer.name || id}`);
+        return;
+    }
+
     const { error } = await supabase
         .from('customers')
         .update({
@@ -103,6 +121,11 @@ export const updateCustomer = async (id: string, customer: Partial<Customer>): P
 };
 
 export const deleteCustomer = async (id: string): Promise<void> => {
+    if (!isOnline()) {
+        addToOfflineQueue('DELETE_CUSTOMER', { id }, `Excluir cliente ID: ${id}`);
+        return;
+    }
+
     // Busca o nome antes de excluir para o log
     const { data: customerData } = await supabase
         .from('customers')
@@ -122,6 +145,11 @@ export const deleteCustomer = async (id: string): Promise<void> => {
 };
 
 export const updateSale = async (id: string, sale: Partial<Sale>): Promise<void> => {
+    if (!isOnline()) {
+        addToOfflineQueue('UPDATE_SALE', { sale, id }, `Editar venda ID: ${id}`);
+        return;
+    }
+
     const { error } = await supabase
         .from('sales')
         .update({
@@ -139,6 +167,11 @@ export const updateSale = async (id: string, sale: Partial<Sale>): Promise<void>
 };
 
 export const deleteSale = async (id: string): Promise<void> => {
+    if (!isOnline()) {
+        addToOfflineQueue('DELETE_SALE', { id }, `Excluir venda ID: ${id}`);
+        return;
+    }
+
     const { error } = await supabase
         .from('sales')
         .delete()
@@ -149,6 +182,11 @@ export const deleteSale = async (id: string): Promise<void> => {
 };
 
 export const updateSaleStatus = async (id: string, status: PaymentStatus, paymentDate?: string): Promise<void> => {
+    if (!isOnline()) {
+        addToOfflineQueue('UPDATE_SALE_STATUS', { id, status, paymentDate }, `Marcar venda ${id} como ${status}`);
+        return;
+    }
+
     const { error } = await supabase
         .from('sales')
         .update({

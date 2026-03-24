@@ -13,6 +13,10 @@ import Settings from './components/Settings';
 import Reports from './components/Reports';
 import ActivityLogs from './components/ActivityLogs';
 import ConfirmDialog from './components/ConfirmDialog';
+import SyncModal from './components/SyncModal';
+import { WifiOff, Signal, AlertTriangle } from 'lucide-react';
+import { getOfflineQueue, isOnline as checkOnline } from './lib/offlineStorage';
+import { OfflineQueueItem } from './types';
 import {
   getCustomers,
   getSales,
@@ -55,6 +59,9 @@ const App: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
+  const [isOnline, setIsOnline] = useState(checkOnline());
+  const [offlineQueue, setOfflineQueue] = useState<OfflineQueueItem[]>([]);
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -106,7 +113,33 @@ const App: React.FC = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    const handleOnlineStatus = () => {
+      const online = checkOnline();
+      setIsOnline(online);
+      if (online) {
+        const queue = getOfflineQueue();
+        if (queue.length > 0) {
+          setOfflineQueue(queue);
+          setShowSyncModal(true);
+        }
+      }
+    };
+
+    window.addEventListener('online', handleOnlineStatus);
+    window.addEventListener('offline', handleOnlineStatus);
+
+    // Initial check for offline data
+    const initialQueue = getOfflineQueue();
+    if (initialQueue.length > 0 && checkOnline()) {
+      setOfflineQueue(initialQueue);
+      setShowSyncModal(true);
+    }
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('online', handleOnlineStatus);
+      window.removeEventListener('offline', handleOnlineStatus);
+    };
   }, []);
 
   useEffect(() => {
@@ -461,7 +494,14 @@ const App: React.FC = () => {
     screen !== AppScreen.REPORTS;
 
   return (
-    <div className="flex flex-col min-h-screen max-w-lg mx-auto bg-background relative overflow-x-hidden shadow-2xl">
+    <div className="flex flex-col min-h-screen max-w-lg mx-auto bg-background relative overflow-x-hidden shadow-2xl border-x border-border/50">
+      {!isOnline && (
+        <div className="bg-amber-500 text-white text-[10px] font-bold py-1 px-4 flex items-center justify-center gap-2 animate-pulse sticky top-0 z-50">
+          <WifiOff className="w-3 h-3" />
+          MODO OFFLINE ATIVO - AS ALTERAÇÕES SERÃO SALVAS LOCALMENTE
+        </div>
+      )}
+      
       <main className={`flex-1 ${showNav ? 'pb-24' : ''}`}>
         {renderScreen()}
       </main>
@@ -488,6 +528,18 @@ const App: React.FC = () => {
         onConfirm={handleExecuteConfirm}
         onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
       />
+
+      {showSyncModal && (
+        <SyncModal 
+          items={offlineQueue}
+          onSyncComplete={() => {
+            setShowSyncModal(false);
+            setOfflineQueue([]);
+            fetchData();
+          }}
+          onClose={() => setShowSyncModal(false)}
+        />
+      )}
     </div>
   );
 };
