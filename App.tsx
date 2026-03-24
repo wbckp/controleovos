@@ -66,9 +66,17 @@ const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallModal, setShowInstallModal] = useState(false);
 
+  // Safety timeout to ensure loading eventually stops
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const fetchData = async () => {
+    // Se estiver offline, nem tenta buscar para não travar a tela
     if (!checkOnline()) {
-      console.log('Skipping fetch: offline.');
       setLoading(false);
       return;
     }
@@ -77,21 +85,11 @@ const App: React.FC = () => {
       console.log('Fetching data from Supabase...');
       setLoading(true);
 
-      // Timeout de 10 segundos para a busca
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout ao buscar dados')), 10000)
-      );
-
-      const fetchPromise = Promise.all([
+      const [customersData, salesData, settingsData] = await Promise.all([
         getCustomers(),
         getSales(),
         getAppSettings()
       ]);
-
-      const [customersData, salesData, settingsData] = await Promise.race([
-        fetchPromise,
-        timeoutPromise
-      ]) as [Customer[], Sale[], AppSettings | null];
 
       console.log(`Fetched ${customersData.length} customers and ${salesData.length} sales.`);
       setCustomers(customersData);
@@ -101,8 +99,6 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      // Se der erro de conexão, pelo menos libera a tela
-      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -140,6 +136,10 @@ const App: React.FC = () => {
         setScreen(AppScreen.LOGIN);
         setCustomers([]);
         setSales([]);
+        setLoading(false);
+      } else {
+        // Para outros eventos como INITIAL_SESSION (sem login)
+        if (!session) setLoading(false);
       }
     });
 
