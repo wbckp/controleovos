@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { Sale } from '../types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wallet, Calendar, BarChart3, Edit2, Trash2, X, Check, ArrowUpRight } from 'lucide-react';
+import { Wallet, Calendar, BarChart3, Edit2, Trash2, X, Check, ArrowUpRight, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import { ResponsiveContainer, AreaChart, Area, XAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -12,6 +12,7 @@ interface FinancesProps {
     onAddQuickSale: (amount: number, date: string) => void;
     onEditSale: (sale: Sale) => void;
     onDeleteSale: (id: string) => void;
+    onNavigateToReports: () => void;
 }
 
 const getLocalDateString = (date: Date) => {
@@ -21,7 +22,7 @@ const getLocalDateString = (date: Date) => {
     return `${y}-${m}-${d}`;
 };
 
-const Finances: React.FC<FinancesProps> = ({ sales, onAddQuickSale, onEditSale, onDeleteSale }) => {
+const Finances: React.FC<FinancesProps> = ({ sales, onAddQuickSale, onEditSale, onDeleteSale, onNavigateToReports }) => {
     const today = new Date();
     const localToday = getLocalDateString(today);
     const [quickValue, setQuickValue] = useState('');
@@ -114,7 +115,12 @@ const Finances: React.FC<FinancesProps> = ({ sales, onAddQuickSale, onEditSale, 
                     <h1 className="text-3xl font-black tracking-tighter">Finanças</h1>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] -mt-1">Ganhos Manuais</p>
                 </div>
-                <ThemeToggle />
+                <div className="flex gap-2 items-center">
+                    <Button variant="outline" size="sm" onClick={onNavigateToReports} className="h-9 px-3 rounded-xl border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 font-black uppercase tracking-widest text-[10px]">
+                      <FileText className="h-4 w-4 mr-1.5" /> Relatórios
+                    </Button>
+                    <ThemeToggle />
+                </div>
             </div>
 
             {/* Performance Chart */}

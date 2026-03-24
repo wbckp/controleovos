@@ -19,13 +19,15 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ sales, onNavigateToClients, onLogout, settings }) => {
   const today = new Date().toISOString().split('T')[0];
-  const [period, setPeriod] = React.useState<'today' | '7d' | '30d' | 'all'>('30d');
+  const [period, setPeriod] = React.useState<'today' | '7d' | '30d' | 'all' | 'custom'>('30d');
+  const [customStartDate, setCustomStartDate] = React.useState<string>(today);
+  const [customEndDate, setCustomEndDate] = React.useState<string>(today);
 
   const stats = React.useMemo(() => {
     const now = new Date();
 
     const filteredSalesByPeriod = sales.filter(s => {
-      const saleDate = new Date(s.date);
+      const saleDate = new Date(s.date + 'T00:00:00');
       if (period === 'today') return s.date === today;
       if (period === '7d') {
         const sevenDaysAgo = new Date();
@@ -36,6 +38,11 @@ const Dashboard: React.FC<DashboardProps> = ({ sales, onNavigateToClients, onLog
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(now.getDate() - 30);
         return saleDate >= thirtyDaysAgo;
+      }
+      if (period === 'custom') {
+        const start = new Date(customStartDate + 'T00:00:00');
+        const end = new Date(customEndDate + 'T23:59:59');
+        return saleDate >= start && saleDate <= end;
       }
       return true; // all
     });
@@ -61,24 +68,41 @@ const Dashboard: React.FC<DashboardProps> = ({ sales, onNavigateToClients, onLog
     const goalPercentage = Math.min(Math.round((totalMonth / monthlyGoal) * 100), 100);
 
     return { totalToday, totalMonth, totalPaid, totalPending, pendingCount, goalPercentage, monthlyGoal, totalPeriod };
-  }, [sales, today, period]);
+  }, [sales, today, period, customStartDate, customEndDate]);
 
-  const weeklyData = React.useMemo(() => {
+  const chartData = React.useMemo(() => {
     const days = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
+    let numDays = 7;
+    let baseDate = new Date();
+    baseDate.setHours(0,0,0,0);
+
+    if (period === 'custom') {
+      const start = new Date(customStartDate + 'T00:00:00');
+      const end = new Date(customEndDate + 'T00:00:00');
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      numDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      if (numDays > 30) numDays = 30; // Limit rendering bars for very long periods
+      baseDate = end;
+    } else if (period === 'today') {
+      numDays = 1;
+    } else if (period === '30d' || period === 'all') {
+      numDays = 30;
+    }
+
+    const series = Array.from({ length: numDays }, (_, i) => {
+      const d = new Date(baseDate.getTime());
+      d.setDate(d.getDate() - ((numDays - 1) - i));
       const dateStr = d.toISOString().split('T')[0];
       const daySales = sales.filter(s => s.date === dateStr);
       const amount = daySales.reduce((acc, s) => acc + s.value, 0);
       return {
-        day: days[d.getDay()],
+        day: numDays <= 7 ? days[d.getDay()] : `${d.getDate()}/${d.getMonth()+1}`,
         amount,
         date: dateStr
       };
     });
-    return last7Days;
-  }, [sales]);
+    return series;
+  }, [sales, period, customStartDate, customEndDate]);
 
   const pieData = [
     { name: 'Pago', value: stats.totalPaid || 0, color: 'var(--primary)' },
@@ -118,7 +142,8 @@ const Dashboard: React.FC<DashboardProps> = ({ sales, onNavigateToClients, onLog
           { id: 'today', label: 'Hoje' },
           { id: '7d', label: '7 dias' },
           { id: '30d', label: '30 dias' },
-          { id: 'all', label: 'Tudo' }
+          { id: 'all', label: 'Tudo' },
+          { id: 'custom', label: 'Personalizado' }
         ].map(p => (
           <Button
             key={p.id}
@@ -131,6 +156,29 @@ const Dashboard: React.FC<DashboardProps> = ({ sales, onNavigateToClients, onLog
           </Button>
         ))}
       </div>
+
+      {period === 'custom' && (
+        <div className="flex gap-2 items-center bg-card shadow-sm p-3 rounded-2xl border mb-2">
+          <div className="flex-1 space-y-1">
+            <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">De</label>
+            <input 
+              type="date" 
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="w-full bg-accent/30 text-xs font-bold rounded-lg px-2 h-8 border-none focus:ring-primary outline-none"
+            />
+          </div>
+          <div className="flex-1 space-y-1">
+            <label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Ate</label>
+            <input 
+              type="date" 
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="w-full bg-accent/30 text-xs font-bold rounded-lg px-2 h-8 border-none focus:ring-primary outline-none"
+            />
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-4">
@@ -237,13 +285,13 @@ const Dashboard: React.FC<DashboardProps> = ({ sales, onNavigateToClients, onLog
         <div className="grid gap-4">
           <Card className="border shadow-sm bg-card">
             <CardHeader className="p-4 pb-0">
-              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Vendas Diárias (7d)</CardTitle>
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Vendas Diárias ({period === 'custom' ? 'Período Especial' : period === 'all' ? 'Tudo' : period})</CardTitle>
             </CardHeader>
             <CardContent className="p-4 h-48">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyData}>
+                <BarChart data={chartData}>
                   <Bar dataKey="amount" radius={[4, 4, 4, 4]}>
-                    {weeklyData.map((entry, index) => (
+                    {chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.date === today ? 'var(--primary)' : 'oklch(from var(--primary) l c h / 0.2)'} />
                     ))}
                   </Bar>

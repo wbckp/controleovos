@@ -10,6 +10,7 @@ import CustomerForm from './components/CustomerForm';
 import Finances from './components/Finances';
 import BottomNav from './components/BottomNav';
 import Settings from './components/Settings';
+import Reports from './components/Reports';
 import ConfirmDialog from './components/ConfirmDialog';
 import {
   getCustomers,
@@ -94,17 +95,36 @@ const App: React.FC = () => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
-      if (session) {
+      if (event === 'SIGNED_IN') {
         setScreen(AppScreen.DASHBOARD);
         fetchData();
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setScreen(AppScreen.LOGIN);
       }
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (window.location.hash.replace('#', '') !== screen) {
+      window.history.pushState(null, '', `#${screen}`);
+    }
+    // Sempre volta pro topo ao trocar de tela
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [screen]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const hash = window.location.hash.replace('#', '') as AppScreen;
+      if (Object.values(AppScreen).includes(hash)) {
+        setScreen(hash);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const handleLogin = () => {
@@ -311,10 +331,11 @@ const App: React.FC = () => {
   };
 
   const renderScreen = () => {
-    if (loading && screen !== AppScreen.LOGIN) {
+    if (loading) {
       return (
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+          {screen === AppScreen.LOGIN && <p className="text-muted-foreground animate-pulse text-sm">Validando sessão...</p>}
         </div>
       );
     }
@@ -406,6 +427,16 @@ const App: React.FC = () => {
             onAddQuickSale={handleQuickSale}
             onEditSale={handleUpdateSale}
             onDeleteSale={handleDeleteSale}
+            onNavigateToReports={() => setScreen(AppScreen.REPORTS)}
+          />
+        );
+      case AppScreen.REPORTS:
+        return (
+          <Reports 
+            sales={sales}
+            customers={customers}
+            onBack={() => setScreen(AppScreen.FINANCES)}
+            onNavigateToClient={goToClientDetail}
           />
         );
       default:

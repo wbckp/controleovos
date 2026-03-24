@@ -35,7 +35,8 @@ export enum AppScreen {
   EDIT_CLIENT = 'EDIT_CLIENT',
   NEW_CLIENT = 'NEW_CLIENT',
   FINANCES = 'FINANCES',
-  SETTINGS = 'SETTINGS'
+  SETTINGS = 'SETTINGS',
+  REPORTS = 'REPORTS'
 }
 
 export interface AppSettings {

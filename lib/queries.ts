@@ -141,7 +141,19 @@ export const updateSaleStatus = async (id: string, status: PaymentStatus, paymen
         })
         .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+        // Fallback for missing payment_date column
+        if (error.code === 'PGRST204') {
+            const { error: fallbackError } = await supabase
+                .from('sales')
+                .update({ status })
+                .eq('id', id);
+            
+            if (fallbackError) throw fallbackError;
+        } else {
+            throw error;
+        }
+    }
 };
 
 export const getPublicAppSettings = async (): Promise<any | null> => {
