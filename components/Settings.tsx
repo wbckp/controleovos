@@ -5,19 +5,39 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Settings as SettingsIcon, Save, Image as ImageIcon, Type, Palette, ShieldCheck, LogOut, X, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Image as ImageIcon, Type, Palette, ShieldCheck, LogOut, X, Loader2, Activity } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
+import { getActivityLogs } from '../lib/queries';
+import { ActivityLog } from '../types';
 
 interface SettingsProps {
     settings: AppSettingsType;
     onSaveSettings: (settings: AppSettingsType) => void;
     onLogout: () => void;
+    onViewLogs: () => void;
     loading?: boolean;
 }
 
-const Settings: React.FC<SettingsProps> = ({ settings, onSaveSettings, onLogout, loading }) => {
+const Settings: React.FC<SettingsProps> = ({ settings, onSaveSettings, onLogout, onViewLogs, loading }) => {
     const [appName, setAppName] = useState(settings.appName);
     const [appLogo, setAppLogo] = useState(settings.appLogo);
+    const [logs, setLogs] = useState<ActivityLog[]>([]);
+    const [logsLoading, setLogsLoading] = useState(false);
+
+    React.useEffect(() => {
+        const fetchLogs = async () => {
+            try {
+                setLogsLoading(true);
+                const data = await getActivityLogs();
+                setLogs(data);
+            } catch (error) {
+                console.error('Error fetching logs:', error);
+            } finally {
+                setLogsLoading(false);
+            }
+        };
+        fetchLogs();
+    }, []);
 
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -129,6 +149,49 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSaveSettings, onLogout,
                             <LogOut className="mr-2 h-4 w-4" />
                             Finalizar Sessão (Sair)
                         </Button>
+                    </CardContent>
+                </Card>
+
+                {/* Activity Logs Section */}
+                <Card 
+                  onClick={onViewLogs}
+                  className="border shadow-sm bg-card overflow-hidden cursor-pointer hover:border-primary/50 transition-colors group"
+                >
+                    <CardHeader className="p-4 pb-2 border-b bg-muted/30 flex flex-row items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-primary" />
+                            <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors">Log de Atividades</CardTitle>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {logsLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                          <span className="text-[9px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">Ver Tudo</span>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0 max-h-64 overflow-y-auto custom-scrollbar">
+                        {logs.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <Activity className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Nenhuma atividade registrada</p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-border/50">
+                                {logs.slice(0, 5).map((log) => (
+                                    <div key={log.id} className="p-4 hover:bg-muted/30 transition-colors">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                                                {log.action.replace('_', ' ')}
+                                            </span>
+                                            <span className="text-[8px] font-bold text-muted-foreground">
+                                                {new Date(log.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] font-bold text-card-foreground leading-tight tracking-tight">
+                                            {log.description}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

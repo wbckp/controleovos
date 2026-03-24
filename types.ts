@@ -36,7 +36,8 @@ export enum AppScreen {
   NEW_CLIENT = 'NEW_CLIENT',
   FINANCES = 'FINANCES',
   SETTINGS = 'SETTINGS',
-  REPORTS = 'REPORTS'
+  REPORTS = 'REPORTS',
+  ACTIVITY_LOGS = 'ACTIVITY_LOGS'
 }
 
 export interface AppSettings {
@@ -48,4 +49,11 @@ export interface AppState {
   currentScreen: AppScreen;
   selectedCustomerId?: string;
   isLoggedIn: boolean;
+}
+
+export interface ActivityLog {
+  id: string;
+  createdAt: string;
+  action: string;
+  description: string;
 }

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Customer, Sale, PaymentStatus } from '../types';
+import { Customer, Sale, PaymentStatus, ActivityLog } from '../types';
 
 export const getCustomers = async (): Promise<Customer[]> => {
     const { data, error } = await supabase
@@ -58,7 +58,7 @@ export const createCustomer = async (customer: Omit<Customer, 'id'>): Promise<Cu
         .single();
 
     if (error) throw error;
-    return {
+    const newCustomer = {
         id: data.id,
         name: data.name,
         phone: data.phone || '',
@@ -66,6 +66,8 @@ export const createCustomer = async (customer: Omit<Customer, 'id'>): Promise<Cu
         avatarUrl: data.avatar_url,
         initials: data.initials
     };
+    await logActivity('CREATE_CUSTOMER', `Cadastrou o cliente: ${newCustomer.name}`);
+    return newCustomer;
 };
 
 export const createSale = async (sale: Omit<Sale, 'id' | 'customerName'>): Promise<void> => {
@@ -81,6 +83,7 @@ export const createSale = async (sale: Omit<Sale, 'id' | 'customerName'>): Promi
         }]);
 
     if (error) throw error;
+    await logActivity('CREATE_SALE', `Registrou venda de R$ ${sale.value.toFixed(2)} para o cliente ID: ${sale.customerId}`);
 };
 
 export const updateCustomer = async (id: string, customer: Partial<Customer>): Promise<void> => {
@@ -96,15 +99,26 @@ export const updateCustomer = async (id: string, customer: Partial<Customer>): P
         .eq('id', id);
 
     if (error) throw error;
+    await logActivity('UPDATE_CUSTOMER', `Atualizou o cadastro do cliente: ${customer.name || id}`);
 };
 
 export const deleteCustomer = async (id: string): Promise<void> => {
+    // Busca o nome antes de excluir para o log
+    const { data: customerData } = await supabase
+        .from('customers')
+        .select('name')
+        .eq('id', id)
+        .single();
+    
+    const customerName = customerData?.name || id;
+
     const { error } = await supabase
         .from('customers')
         .delete()
         .eq('id', id);
 
     if (error) throw error;
+    await logActivity('DELETE_CUSTOMER', `Excluiu o cliente: ${customerName}`);
 };
 
 export const updateSale = async (id: string, sale: Partial<Sale>): Promise<void> => {
@@ -121,6 +135,7 @@ export const updateSale = async (id: string, sale: Partial<Sale>): Promise<void>
         .eq('id', id);
 
     if (error) throw error;
+    await logActivity('UPDATE_SALE', `Editou uma venda (ID: ${id}) para R$ ${sale.value?.toFixed(2)}`);
 };
 
 export const deleteSale = async (id: string): Promise<void> => {
@@ -130,6 +145,7 @@ export const deleteSale = async (id: string): Promise<void> => {
         .eq('id', id);
 
     if (error) throw error;
+    await logActivity('DELETE_SALE', `Excluiu uma venda (ID: ${id})`);
 };
 
 export const updateSaleStatus = async (id: string, status: PaymentStatus, paymentDate?: string): Promise<void> => {
@@ -154,6 +170,7 @@ export const updateSaleStatus = async (id: string, status: PaymentStatus, paymen
             throw error;
         }
     }
+    await logActivity('UPDATE_SALE_STATUS', `Marcou venda ${id} como ${status}`);
 };
 
 export const getPublicAppSettings = async (): Promise<any | null> => {
@@ -225,4 +242,60 @@ export const updateAppSettings = async (settings: { appName: string; appLogo: st
         console.error('Error updating app settings:', error);
         throw error;
     }
+};
+
+export const logActivity = async (action: string, description: string): Promise<void> => {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        await supabase.from('activity_logs').insert([{
+            user_id: session.user.id,
+            action,
+            description
+        }]);
+    } catch (error) {
+        console.warn('Error logging activity:', error);
+    }
+};
+
+export const getActivityLogs = async (): Promise<ActivityLog[]> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return [];
+
+    const { data, error } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    if (error) throw error;
+    return data.map(l => ({
+        id: l.id,
+        createdAt: l.created_at,
+        action: l.action,
+        description: l.description
+    }));
+};
+
+export const deleteActivityLogs = async (ids: string[]): Promise<void> => {
+    const { error } = await supabase
+        .from('activity_logs')
+        .delete()
+        .in('id', ids);
+
+    if (error) throw error;
+};
+
+export const clearActivityLogs = async (): Promise<void> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { error } = await supabase
+        .from('activity_logs')
+        .delete()
+        .eq('user_id', session.user.id);
+
+    if (error) throw error;
 };

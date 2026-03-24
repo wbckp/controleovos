@@ -11,6 +11,7 @@ import Finances from './components/Finances';
 import BottomNav from './components/BottomNav';
 import Settings from './components/Settings';
 import Reports from './components/Reports';
+import ActivityLogs from './components/ActivityLogs';
 import ConfirmDialog from './components/ConfirmDialog';
 import {
   getCustomers,
@@ -405,7 +406,14 @@ const App: React.FC = () => {
             settings={settings}
             onSaveSettings={handleSaveSettings}
             onLogout={confirmLogout}
+            onViewLogs={() => setScreen(AppScreen.ACTIVITY_LOGS)}
             loading={loading}
+          />
+        );
+      case AppScreen.ACTIVITY_LOGS:
+        return (
+          <ActivityLogs 
+            onBack={() => setScreen(AppScreen.SETTINGS)}
           />
         );
       case AppScreen.NEW_CLIENT:
@@ -448,7 +456,9 @@ const App: React.FC = () => {
     screen !== AppScreen.NEW_SALE &&
     screen !== AppScreen.EDIT_SALE &&
     screen !== AppScreen.EDIT_CLIENT &&
-    screen !== AppScreen.NEW_CLIENT;
+    screen !== AppScreen.NEW_CLIENT &&
+    screen !== AppScreen.ACTIVITY_LOGS &&
+    screen !== AppScreen.REPORTS;
 
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto bg-background relative overflow-x-hidden shadow-2xl">
