@@ -14,6 +14,7 @@ import Reports from './components/Reports';
 import ActivityLogs from './components/ActivityLogs';
 import ConfirmDialog from './components/ConfirmDialog';
 import SyncModal from './components/SyncModal';
+import InstallModal from './components/InstallModal';
 import { WifiOff, Signal, AlertTriangle } from 'lucide-react';
 import { getOfflineQueue, isOnline as checkOnline } from './lib/offlineStorage';
 import { OfflineQueueItem } from './types';
@@ -62,6 +63,8 @@ const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState(checkOnline());
   const [offlineQueue, setOfflineQueue] = useState<OfflineQueueItem[]>([]);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallModal, setShowInstallModal] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -128,6 +131,28 @@ const App: React.FC = () => {
     window.addEventListener('online', handleOnlineStatus);
     window.addEventListener('offline', handleOnlineStatus);
 
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      
+      // Mostrar o modal se ainda não foi mostrado nesta sessão
+      if (!sessionStorage.getItem('pwa_prompt_shown')) {
+        setShowInstallModal(true);
+        sessionStorage.setItem('pwa_prompt_shown', 'true');
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Lógica para iOS (que não dispara beforeinstallprompt)
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    
+    if (isIos && !isStandalone && !sessionStorage.getItem('pwa_prompt_shown')) {
+      setShowInstallModal(true);
+      sessionStorage.setItem('pwa_prompt_shown', 'true');
+    }
+
     // Initial check for offline data
     const initialQueue = getOfflineQueue();
     if (initialQueue.length > 0 && checkOnline()) {
@@ -139,6 +164,7 @@ const App: React.FC = () => {
       subscription.unsubscribe();
       window.removeEventListener('online', handleOnlineStatus);
       window.removeEventListener('offline', handleOnlineStatus);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 
@@ -538,6 +564,13 @@ const App: React.FC = () => {
             fetchData();
           }}
           onClose={() => setShowSyncModal(false)}
+        />
+      )}
+
+      {showInstallModal && (
+        <InstallModal 
+          deferredPrompt={deferredPrompt}
+          onClose={() => setShowInstallModal(false)}
         />
       )}
     </div>
