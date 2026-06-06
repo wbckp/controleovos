@@ -513,6 +513,8 @@ const App: React.FC = () => {
       case AppScreen.ACTIVITY_LOGS:
         return (
           <ActivityLogs 
+            customers={customers}
+            sales={sales}
             onBack={() => setScreen(AppScreen.SETTINGS)}
           />
         );

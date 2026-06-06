@@ -84,6 +84,14 @@ export const createSale = async (sale: Omit<Sale, 'id' | 'customerName'>): Promi
         return;
     }
 
+    const { data: customerData } = await supabase
+        .from('customers')
+        .select('name')
+        .eq('id', sale.customerId)
+        .single();
+    
+    const customerName = customerData?.name || sale.customerId;
+
     const { error } = await supabase
         .from('sales')
         .insert([{
@@ -96,7 +104,7 @@ export const createSale = async (sale: Omit<Sale, 'id' | 'customerName'>): Promi
         }]);
 
     if (error) throw error;
-    await logActivity('CREATE_SALE', `Registrou venda de R$ ${sale.value.toFixed(2)} para o cliente ID: ${sale.customerId}`);
+    await logActivity('CREATE_SALE', `Registrou venda de R$ ${sale.value.toFixed(2)} para o cliente: ${customerName}`);
 };
 
 export const updateCustomer = async (id: string, customer: Partial<Customer>): Promise<void> => {
@@ -150,6 +158,18 @@ export const updateSale = async (id: string, sale: Partial<Sale>): Promise<void>
         return;
     }
 
+    let customerName = sale.customerId;
+    if (sale.customerId) {
+        const { data: customerData } = await supabase
+            .from('customers')
+            .select('name')
+            .eq('id', sale.customerId)
+            .single();
+        if (customerData?.name) customerName = customerData.name;
+    } else {
+        customerName = 'Desconhecido';
+    }
+
     const { error } = await supabase
         .from('sales')
         .update({
@@ -163,7 +183,7 @@ export const updateSale = async (id: string, sale: Partial<Sale>): Promise<void>
         .eq('id', id);
 
     if (error) throw error;
-    await logActivity('UPDATE_SALE', `Editou uma venda (ID: ${id}) para R$ ${sale.value?.toFixed(2)}`);
+    await logActivity('UPDATE_SALE', `Editou venda de R$ ${sale.value?.toFixed(2)} do cliente: ${customerName}`);
 };
 
 export const deleteSale = async (id: string): Promise<void> => {
@@ -172,13 +192,23 @@ export const deleteSale = async (id: string): Promise<void> => {
         return;
     }
 
+    const { data: saleData } = await supabase
+        .from('sales')
+        .select('value, customers(name)')
+        .eq('id', id)
+        .single();
+    
+    // @ts-ignore
+    const customerName = saleData?.customers?.name || 'Desconhecido';
+    const value = saleData?.value?.toFixed(2) || '0.00';
+
     const { error } = await supabase
         .from('sales')
         .delete()
         .eq('id', id);
 
     if (error) throw error;
-    await logActivity('DELETE_SALE', `Excluiu uma venda (ID: ${id})`);
+    await logActivity('DELETE_SALE', `Excluiu venda (R$ ${value}) do cliente: ${customerName}`);
 };
 
 export const updateSaleStatus = async (id: string, status: PaymentStatus, paymentDate?: string): Promise<void> => {
@@ -186,6 +216,16 @@ export const updateSaleStatus = async (id: string, status: PaymentStatus, paymen
         addToOfflineQueue('UPDATE_SALE_STATUS', { id, status, paymentDate }, `Marcar venda ${id} como ${status}`);
         return;
     }
+
+    const { data: saleData } = await supabase
+        .from('sales')
+        .select('value, customers(name)')
+        .eq('id', id)
+        .single();
+    
+    // @ts-ignore
+    const customerName = saleData?.customers?.name || 'Desconhecido';
+    const value = saleData?.value?.toFixed(2) || '0.00';
 
     const { error } = await supabase
         .from('sales')
@@ -208,7 +248,8 @@ export const updateSaleStatus = async (id: string, status: PaymentStatus, paymen
             throw error;
         }
     }
-    await logActivity('UPDATE_SALE_STATUS', `Marcou venda ${id} como ${status}`);
+    const statusText = status === 'PAID' ? 'Pago' : 'Pendente';
+    await logActivity('UPDATE_SALE_STATUS', `Marcou venda (R$ ${value}) do cliente: ${customerName} como ${statusText}`);
 };
 
 export const getPublicAppSettings = async (): Promise<any | null> => {

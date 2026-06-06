@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { ActivityLog } from '../types';
+import { ActivityLog, Customer, Sale } from '../types';
 import { getActivityLogs, deleteActivityLogs, clearActivityLogs } from '../lib/queries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,11 @@ import { ArrowLeft, Trash2, CheckCircle, XCircle, Loader2, Activity, Trash } fro
 
 interface ActivityLogsProps {
   onBack: () => void;
+  customers: Customer[];
+  sales: Sale[];
 }
 
-const ActivityLogs: React.FC<ActivityLogsProps> = ({ onBack }) => {
+const ActivityLogs: React.FC<ActivityLogsProps> = ({ onBack, customers, sales }) => {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -94,6 +96,37 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ onBack }) => {
     }
   };
 
+  const formatDescription = (description: string) => {
+    if (!description) return '';
+    let text = description;
+
+    const customerIdMatch = text.match(/cliente ID:\s*([a-f0-9\-]+)/i);
+    if (customerIdMatch) {
+      const id = customerIdMatch[1];
+      const customer = customers.find(c => c.id === id);
+      if (customer) {
+        text = text.replace(new RegExp(`cliente ID:\\s*${id}`, 'i'), `cliente: ${customer.name}`);
+      } else {
+        text = text.replace(new RegExp(`cliente ID:\\s*${id}`, 'i'), `cliente (Não encontrado)`);
+      }
+    }
+
+    const saleMatch = text.match(/\(ID:\s*([a-f0-9\-]+)\)/i);
+    if (saleMatch) {
+      const id = saleMatch[1];
+      const sale = sales.find(s => s.id === id);
+      if (sale) {
+        text = text.replace(new RegExp(`uma venda \\(ID:\\s*${id}\\)`, 'i'), `venda do cliente: ${sale.customerName}`);
+        text = text.replace(new RegExp(`\\(ID:\\s*${id}\\)`, 'i'), `da venda do cliente: ${sale.customerName}`);
+      } else {
+        text = text.replace(new RegExp(`uma venda \\(ID:\\s*${id}\\)`, 'i'), `venda (já excluída) do sistema`);
+        text = text.replace(new RegExp(`\\(ID:\\s*${id}\\)`, 'i'), `da venda (já excluída)`);
+      }
+    }
+
+    return text;
+  };
+
   return (
     <div className="flex flex-col gap-6 p-6 pb-24 max-w-lg mx-auto bg-background min-h-full">
       <header className="flex items-center justify-between pt-4">
@@ -167,7 +200,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ onBack }) => {
                       </span>
                     </div>
                     <p className="text-[11px] font-bold text-card-foreground leading-tight tracking-tight pr-2">
-                      {log.description}
+                      {formatDescription(log.description)}
                     </p>
                   </div>
                 </div>
