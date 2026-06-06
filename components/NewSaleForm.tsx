@@ -21,8 +21,25 @@ interface NewSaleFormProps {
 
 const NewSaleForm: React.FC<NewSaleFormProps> = ({ customers, onSave, onCancel, onAddNewCustomer, onNavigateToNewCustomer, initialData, initialCustomerId }) => {
   const [customerId, setCustomerId] = useState(initialData?.customerId || initialCustomerId || '');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [quantity, setQuantity] = useState(initialData?.quantity.toString() || '');
   const [value, setValue] = useState(initialData?.value.toString() || '');
+
+  React.useEffect(() => {
+    if (customerId) {
+      const client = customers.find(c => c.id === customerId);
+      if (client) {
+        setSearchTerm(client.name);
+      }
+    } else if (!isDropdownOpen) {
+      setSearchTerm('');
+    }
+  }, [customerId, customers, isDropdownOpen]);
+
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   const [status, setStatus] = useState<PaymentStatus>(initialData?.status || PaymentStatus.PAID);
   const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
 
@@ -95,18 +112,46 @@ const NewSaleForm: React.FC<NewSaleFormProps> = ({ customers, onSave, onCancel, 
           </div>
           <div className="relative group">
             <User className="absolute left-4 top-4 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
-            <Select value={customerId} onValueChange={setCustomerId}>
-              <SelectTrigger className="h-14 pl-12 rounded-2xl border bg-card shadow-sm text-base font-bold text-foreground">
-                <SelectValue placeholder="Selecione um cliente..." />
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl shadow-xl border-none">
-                {customers.map(c => (
-                  <SelectItem key={c.id} value={c.id} className="h-12 rounded-xl focus:bg-primary/10 focus:text-primary">
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              type="text"
+              placeholder="Digite para buscar um cliente..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCustomerId('');
+                setIsDropdownOpen(true);
+              }}
+              onFocus={() => setIsDropdownOpen(true)}
+              onBlur={() => {
+                setTimeout(() => setIsDropdownOpen(false), 200);
+              }}
+              className="h-14 pl-12 rounded-2xl border bg-card shadow-sm text-base font-bold text-foreground"
+            />
+            {isDropdownOpen && (
+              <div className="absolute top-[calc(100%+8px)] left-0 right-0 max-h-60 overflow-y-auto bg-card rounded-2xl shadow-xl border border-border z-50 p-2">
+                {filteredCustomers.length > 0 ? (
+                  filteredCustomers.map(c => (
+                    <div
+                      key={c.id}
+                      className={`p-3 rounded-xl cursor-pointer text-base font-bold transition-colors mb-1 last:mb-0 ${
+                        customerId === c.id ? 'bg-primary/20 text-primary' : 'hover:bg-primary/10 hover:text-primary'
+                      }`}
+                      onClick={() => {
+                        setCustomerId(c.id);
+                        setSearchTerm(c.name);
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      {c.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-muted-foreground text-sm font-medium">
+                    Nenhum cliente encontrado
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
