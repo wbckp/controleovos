@@ -62,7 +62,7 @@ const NewSaleForm: React.FC<NewSaleFormProps> = ({ customers, onSave, onCancel, 
       value: Number(value),
       date,
       status,
-      description: `${quantity} Dúzias - Ovos`
+      description: `${quantity} Unidades - Ovos`
     };
 
     onSave(saleData);
@@ -133,9 +133,8 @@ const NewSaleForm: React.FC<NewSaleFormProps> = ({ customers, onSave, onCancel, 
                   filteredCustomers.map(c => (
                     <div
                       key={c.id}
-                      className={`p-3 rounded-xl cursor-pointer text-base font-bold transition-colors mb-1 last:mb-0 ${
-                        customerId === c.id ? 'bg-primary/20 text-primary' : 'hover:bg-primary/10 hover:text-primary'
-                      }`}
+                      className={`p-3 rounded-xl cursor-pointer text-base font-bold transition-colors mb-1 last:mb-0 ${customerId === c.id ? 'bg-primary/20 text-primary' : 'hover:bg-primary/10 hover:text-primary'
+                        }`}
                       onClick={() => {
                         setCustomerId(c.id);
                         setSearchTerm(c.name);
